@@ -181,7 +181,7 @@ body{background:var(--bg);font-family:'Noto Sans KR',sans-serif;color:var(--ink)
         </div>
       </div>
     </div>
-    <div id="odd-warn" class="warn">홀수 인원 — 마지막 1명 추가 카트 자동 반영됩니다</div>
+    <div id="odd-warn" class="warn">⚠️ 홀수 인원 — 2인 1카트 기준 시 마지막 1명은 1인 1카트를 이용하며, 골프장별 추가요금(레이크뷰 $25 / 나머지 $13)이 자동 반영됩니다</div>
   </div>
 
   <!-- 견적 유형 -->
@@ -213,6 +213,7 @@ body{background:var(--bg);font-family:'Noto Sans KR',sans-serif;color:var(--ink)
           <option value="유은|50">유은 (4성급) — $50/룸</option>
           <option value="무엉탄|60">무엉탄 (5성급) — $60/룸</option>
           <option value="아마리 비엔티안|90">아마리 비엔티안 (5성급) — $90/룸</option>
+          <option value="자체 진행|0">자체 진행 (고객 직접 예약) — $0</option>
         </select>
       </div>
       <div class="f"><label>객실 타입</label>
@@ -503,7 +504,7 @@ function calc() {
   var tourDays = +document.getElementById('tour-days').value;
   var isCustom = document.querySelector('input[name=qmode]:checked').value === 'custom';
 
-  // 홀수 카트 경고
+  // 홀수 카트 경고 — 2인1카트 기본 선택 + 홀수 인원일 때만 표시
   document.getElementById('odd-warn').classList.toggle('show', cartMode === '2per1' && pax % 2 !== 0 && pax > 1);
 
   // 골프 비용
@@ -533,7 +534,17 @@ function calc() {
     var green = rate * pax;
     totalGreen += green;
 
-    var cartExtra = (!noCart && cartMode === '1per1') ? c.ex * pax : 0;
+    // 카트 추가요금 계산
+    // - 1인1카트 선택 시: 전원에 1인1카트 추가요금 적용
+    // - 2인1카트(기본) + 홀수 인원 시: 마지막 1명만 1인1카트 추가요금
+    var cartExtra = 0;
+    if (!noCart) {
+      if (cartMode === '1per1') {
+        cartExtra = c.ex * pax;
+      } else if (cartMode === '2per1' && pax % 2 !== 0) {
+        cartExtra = c.ex * 1; // 홀수 1명분만 추가
+      }
+    }
     totalCartExtra += cartExtra;
 
     // 태그
@@ -544,6 +555,11 @@ function calc() {
     } else {
       var cp2 = document.getElementById('cprice-' + i);
       if (cp2 && +cp2.value > 0) tag = ' [별도가]';
+    }
+    // 카트 추가 태그
+    if (!noCart && cartExtra > 0) {
+      if (cartMode === '1per1') tag += ' [1인1카트 +$' + cartExtra + ']';
+      else if (cartMode === '2per1' && pax % 2 !== 0) tag += ' [홀수1명카트 +$' + cartExtra + ']';
     }
 
     golfLines.push({
@@ -559,9 +575,14 @@ function calc() {
   // 숙박
   var rooms     = roomtype === 'single' ? pax : Math.ceil(pax / 2);
   var hotelCost = hRate * rooms * nights;
-  var roomNote  = roomtype === 'single'
-    ? '1인1실 × ' + pax + '룸 × ' + nights + '박'
-    : (pax % 2 ? '2인1실 ' + Math.floor(pax/2) + '룸+싱글1룸' : '2인1실 × ' + rooms + '룸') + ' × ' + nights + '박';
+  var roomNote;
+  if (hRate === 0) {
+    roomNote = '고객 직접 예약';
+  } else {
+    roomNote = roomtype === 'single'
+      ? '1인1실 × ' + pax + '룸 × ' + nights + '박'
+      : (pax % 2 ? '2인1실 ' + Math.floor(pax/2) + '룸+싱글1룸' : '2인1실 × ' + rooms + '룸') + ' × ' + nights + '박';
+  }
 
   // 차량
   var carCost = carMode === 'roundtrip' ? 70 * rounds : carMode === 'fullday' ? 90 * rounds : 0;
