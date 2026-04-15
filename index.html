@@ -426,11 +426,22 @@ function buildCourseBlocks() {
 
     // ── 골프장 <select> ──
     var opts_html = '';
+    // 골프장 목록
     COURSES.forEach(function(cc) {
       opts_html += '<option value="' + cc.n + '"' + (cc.n === selCourse ? ' selected' : '') + '>' + cc.n;
-      if (cc.has4p)    opts_html += ' [4인↑할인]';
+      if (cc.has4p)     opts_html += ' [4인↑할인]';
       if (cc.hasSports) opts_html += ' [스포츠데이]';
       opts_html += '</option>';
+    });
+    // 구분선 + 개인 일정
+    var personalItems = [
+      {v:'휴식', label:'— 개인 일정 · 자유 휴식'},
+      {v:'방비엥투어', label:'— 방비엥 일일 투어 (비용 별도 문의)'},
+      {v:'루왕프라방투어', label:'— 루앙프라방 일일 투어 (비용 별도 문의)'}
+    ];
+    opts_html += '<option disabled>──────────────</option>';
+    personalItems.forEach(function(p){
+      opts_html += '<option value="' + p.v + '"' + (p.v === selCourse ? ' selected' : '') + '>' + p.label + '</option>';
     });
 
     // ── 요금 유형 라디오 ──
@@ -518,6 +529,27 @@ function calc() {
 
     var cName  = cSel.value;
     courseNames.push(cName);
+
+    // 개인 일정(휴식/투어) 처리
+    var personalItems = ['휴식','방비엥투어','루왕프라방투어'];
+    var isPersonal = personalItems.indexOf(cName) >= 0;
+    if (isPersonal) {
+      var personalLabel = {
+        '휴식':        '자유 휴식',
+        '방비엥투어':   '방비엥 일일 투어',
+        '루왕프라방투어':'루앙프라방 일일 투어'
+      }[cName];
+      var noteStr = (cName !== '휴식') ? ' (비용은 일정에 따라 상이 — 별도 문의)' : '';
+      golfLines.push({label: (i+1) + '일차 ' + personalLabel + noteStr, amount: 0, isPersonal: cName !== '휴식'});
+      // 요금유형 라디오 숨기기
+      var dgEl = document.getElementById('dg' + i);
+      if (dgEl) dgEl.parentElement.style.display = 'none';
+      continue;
+    }
+    // 요금유형 라디오 표시 복원
+    var dgEl2 = document.getElementById('dg' + i);
+    if (dgEl2) dgEl2.parentElement.style.display = '';
+
     var c      = getCourse(cName);
     var dowVal = dowSel.value;
     var noCart = (cName === '라오');
@@ -611,7 +643,9 @@ function calc() {
 
   var golfHtml = '';
   golfLines.forEach(function(g){
-    golfHtml += '<div class="rp-row"><span class="rp-lb">' + g.label + '</span><span>$' + g.amount + '</span></div>';
+    var amtStr = g.isPersonal ? '<span style="color:rgba(255,220,100,.9);font-size:11px">별도 문의</span>'
+                              : '$' + g.amount;
+    golfHtml += '<div class="rp-row"><span class="rp-lb">' + g.label + '</span><span>' + amtStr + '</span></div>';
   });
   document.getElementById('r-golf-rows').innerHTML = golfHtml;
 
@@ -665,7 +699,8 @@ function buildText() {
   ];
   document.querySelectorAll('#r-golf-rows .rp-row').forEach(function(row){
     var lb  = row.querySelector('.rp-lb').textContent;
-    var val = row.lastElementChild.textContent;
+    var valEl = row.lastElementChild;
+    var val = valEl.querySelector('span') ? '별도 문의' : valEl.textContent;
     lines.push('  ' + lb + ' → ' + val);
   });
   lines.push('');
